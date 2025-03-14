@@ -11,9 +11,9 @@ Autores:
  - Hernan ATN | herni@cajadeideas.ar 
 """
 
-import utiles_flask.imagenes
-import utiles_flask.ruteo
-import utiles_flask.texto
+import chastack_utiles_flask.imagenes
+import chastack_utiles_flask.ruteo
+import chastack_utiles_flask.texto
 
 
 if __name__ == '__main__':
