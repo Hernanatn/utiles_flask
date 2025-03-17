@@ -1,6 +1,8 @@
 
-from typing import Any as Cualquiera, Callable as Llamable, Optional as Opcional, Type as Tipo, Union, Iterator as Iterador, Generator as Generador
+from typing import Any as Cualquiera, Callable as Llamable, Optional as Opcional, Type as Tipo, Union, Iterator as Iterador, Generator as Generador, TypeAlias as AliasDeTipo,Protocol as Protocolo, runtime_checkable
 import flask.globals
+from flask import Flask
+from flask.ctx import _AppCtxGlobals
 from werkzeug.wrappers.request import Request as Solicitud
 from werkzeug.wrappers.response import  Response as Respuesta
 from functools import cache
@@ -20,14 +22,33 @@ def obtenerFuncionVistaPorRegla(regla : str, metodo :str ="GET") -> Cualquiera:
             return aplicacion.view_functions[entrada_regla.endpoint]
     raise VistaNoExiste(f"No se pudo encontrar la vista asociada a {regla}, con el método {metodo}.")
 
-Condicion : AliasDeTipo = Llamable[[Opcional[Flask], Opcional[flask.globals._AppCtxGlobals], Opcional[Solicitud]],bool]
+@runtime_checkable
+class LlamableFlask(Protocolo):
+    def __call__(
+        self, 
+        aplicacion: Opcional[Flask], 
+        g: Opcional[_AppCtxGlobals], 
+        solicitud: Opcional[Solicitud], 
+        *posicionales: Cualquiera, 
+        **nominales: Cualquiera
+    ) -> Cualquiera: ...
 
-def registarCondicion(condicion : Llamable[[Opcional[Flask], Opcional[flask.globals._AppCtxGlobals], Opcional[Solicitud],...],Cualquiera],*posicionales,**nominales) -> Condicion:
-    def condicion(aplicacion : Opcional[Flask], g : Opcional[flask.globals._AppCtxGlobals] = None, solicitud : Opcional[Solicitud] = None) -> bool: 
-        return bool(f(aplicacion,g,solicitud*posicionales,**nominales))
+@runtime_checkable
+class Condicion(Protocolo):
+    def __call__(
+        self, 
+        aplicacion: Opcional[Flask], 
+        g: Opcional[_AppCtxGlobals], 
+        solicitud: Opcional[Solicitud]
+    ) -> bool: ...
+
+
+def registarCondicion(f : LlamableFlask,*posicionales,**nominales) -> Condicion:
+    def condicion(aplicacion : Opcional[Flask], g : Opcional[_AppCtxGlobals] = None, solicitud : Opcional[Solicitud] = None) -> bool: 
+        return bool(f(aplicacion,g,solicitud,*posicionales,**nominales))
     return condicion
 
-def registrarRedireccionCondicional(condicion : Condicion, g : Opcional[flask.globals._AppCtxGlobals] = None, solicitud : Opcional[Solicitud] = None, crearRespuesta : Opcional[Llamable[...,Respuesta]] = None, redireccionar : Opcional[Llamable[[str,int, Opcional[type[Respuesta]]],Respuesta]]=None) -> Llamable[[str,str,str,bool],Llamable]:
+def registrarRedireccionCondicional(condicion : Condicion, g : Opcional[_AppCtxGlobals] = None, solicitud : Opcional[Solicitud] = None, crearRespuesta : Opcional[Llamable[...,Respuesta]] = None, redireccionar : Opcional[Llamable[[str,int, Opcional[type[Respuesta]]],Respuesta]]=None) -> Llamable[[str,str,str,bool],Llamable]:
     import flask
     if g is None : g = flask.g 
     if solicitud is None : solicitud = flask.request
@@ -62,7 +83,7 @@ def registrarRedireccionCondicional(condicion : Condicion, g : Opcional[flask.gl
         return decorador
     return redireccionCondicional
 
-def registrarRequiereUsuario(tipo_usuario : Tipo = object, tipo_admin: Tipo = object, g : Opcional[flask.globals._AppCtxGlobals] = None, solicitud : Opcional[Solicitud] = None, crearRespuesta : Opcional[Llamable[...,Respuesta]] = None, redireccionar : Opcional[Llamable[[str,int, Opcional[type[Respuesta]]],Respuesta]]=None) -> Llamable[[str,str,str,bool],Llamable]:
+def registrarRequiereUsuario(tipo_usuario : Tipo = object, tipo_admin: Tipo = object, g : Opcional[_AppCtxGlobals] = None, solicitud : Opcional[Solicitud] = None, crearRespuesta : Opcional[Llamable[...,Respuesta]] = None, redireccionar : Opcional[Llamable[[str,int, Opcional[type[Respuesta]]],Respuesta]]=None) -> Llamable[[str,str,str,bool],Llamable]:
     import flask
     if g is None : g = flask.g 
     if solicitud is None : solicitud = flask.request
@@ -101,13 +122,13 @@ def registrarRequiereUsuario(tipo_usuario : Tipo = object, tipo_admin: Tipo = ob
 
 
 
-CuerpoRespuesta : AliasDeTipo = Union[str, bytes, dict, list, Iterator, Generator]
+CuerpoRespuesta : AliasDeTipo = Union[str, bytes, dict, list, Iterador, Generador]
 CodigoRespuesta : AliasDeTipo = Union[str,int]
 EncabezadosRespuesta : AliasDeTipo = Union[dict[str,str],list[tuple[str,str]]]
 TuplaRespuesta : AliasDeTipo = Union[tuple[CuerpoRespuesta,CodigoRespuesta,EncabezadosRespuesta],tuple[CuerpoRespuesta,CodigoRespuesta],tuple[CuerpoRespuesta,EncabezadosRespuesta]]
 Union[
     tuple[
-        cuerpoRespuesta,
+        CuerpoRespuesta,
         Union[str,int]
     ],
     tuple[
