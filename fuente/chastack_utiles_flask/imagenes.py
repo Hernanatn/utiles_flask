@@ -1,11 +1,11 @@
 from werkzeug.datastructures.file_storage import FileStorage
 from typing import Optional
 
-def guardarImagen(imagen : FileStorage,nombre_archivo : str, directorio : str,*, subdirectorio : Optional[str] = '') -> str:
-    from PIL import Image as Imagen
+def guardarImagen(imagen : FileStorage,nombre_archivo : str, directorio : str,*, subdirectorio : str = '') -> str:
+    from PIL.Image import Image as Imagen, open as abrirImagen
     import os 
 
-    imagen_base : Imagen = Imagen.open(imagen)
+    imagen_base : Imagen = abrirImagen(imagen)
     nombre_archivo_imagen : str = f"{nombre_archivo}.webp".encode('ascii','ignore').decode('ascii')
  
     imagen_maxi = imagen_base
