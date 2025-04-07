@@ -121,7 +121,32 @@ def registrarRequiereUsuario(tipo_usuario : Tipo = object, tipo_admin: Tipo = ob
     return requiereUsuario
 
 
-
+def ejecutarVista(
+    vista: Llamable[..., Cualquiera],
+    contexto_solicitud: Solicitud,
+    *posicionales: Cualquiera,
+    **nominales: Cualquiera
+) -> Respuesta:
+    from flask import current_app as aplicacion, g as g_global, request as solicitud_global, make_response
+    with aplicacion.app_context(), aplicacion.test_request_context(environ_overrides=contexto_solicitud.environ):
+        g = g_global
+        solicitud = solicitud_global
+        for funcion in aplicacion.before_request_funcs.get(None, []):
+            resultado = funcion()
+            if resultado is not None:
+                return resultado if isinstance(resultado, Respuesta) else make_response(resultado)
+        
+        contexto_inyectado = {}
+        for procesador in aplicacion.template_context_processors.get(None, []):
+            contexto_inyectado.update(procesador())
+        aplicacion.update_template_context(contexto_inyectado)
+        respuesta = vista(*posicionales, **nominales)
+        if not isinstance(respuesta, Respuesta):
+            respuesta = make_response(respuesta)
+        for funcion in aplicacion.after_request_funcs.get(None, []):
+            respuesta = funcion(respuesta)
+        return respuesta
+        
 CuerpoRespuesta : AliasDeTipo = Union[str, bytes, dict, list, Iterador, Generador]
 CodigoRespuesta : AliasDeTipo = Union[str,int]
 EncabezadosRespuesta : AliasDeTipo = Union[dict[str,str],list[tuple[str,str]]]
